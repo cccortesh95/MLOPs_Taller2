@@ -408,6 +408,7 @@ Respuesta esperada (después de entrenar):
   ]
 }
 ```
+![Pruebas de la API](Imagenes/Arquitectura.png)
 
 ### Clasificar un pingüino
 
