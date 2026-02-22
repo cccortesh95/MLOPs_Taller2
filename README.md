@@ -379,13 +379,11 @@ Las métricas se actualizan automáticamente porque:
 
 ### Flujo completo
 
-```
-Jupyter (ModelTrainer)                    API (FastAPI)
-─────────────────────                     ─────────────
-train_and_save()                          
-  ├─ joblib.dump → /app/models/*.pkl  ──▶  discover_models() → glob("*_model.pkl")
-  └─ _update_report → model_metrics.pkl ─▶  load_metrics() → pd.read_pickle()
-```
+
+<p align="center">
+  <img src="Imagenes/flujo.png" alt="flujo" width="800">
+</p
+
 
 ## Pruebas de la API
 
