@@ -20,7 +20,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - shared_models:/app/modelos
+      - shared_models:/app/models
       - shared_report:/app/report
       - shared_results:/app/results
     depends_on:

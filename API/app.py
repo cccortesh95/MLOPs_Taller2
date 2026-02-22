@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 app = FastAPI(title="Penguin Classifier API")
 
-MODELS_DIR = "modelos"
+MODELS_DIR = "models"
 REPORT_PATH = "report/model_metrics.pkl"
 RESULTS_DIR = "results"
 
