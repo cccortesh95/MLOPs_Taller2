@@ -18,7 +18,11 @@ Ambos servicios comparten volúmenes Docker para modelos, reportes, datos y resu
 ```
 MLOps_Taller1/
 ├── API/
-│   └── app.py                          # API FastAPI de inferencia
+│   ├── app.py                          # Endpoints FastAPI
+│   └── utils/
+│       ├── __init__.py
+│       ├── model_utils.py              # Carga de modelos, métricas, scaler
+│       └── logger.py                   # Clase PredictionLogger
 ├── data/
 │   └── penguins_v1.csv                 # Dataset de pingüinos
 ├── Docker/
@@ -199,34 +203,57 @@ Para eliminar también los volúmenes (modelos, reportes, etc.) y empezar desde 
 docker-compose down -v
 ```
 
-## Entrenamiento de Modelos (Creación desde Cero)
+## Entrenamiento de Modelos — Clase `ModelTrainer`
 
-Cuando los volúmenes están vacíos (primera ejecución o después de `docker-compose down -v`), es necesario entrenar los modelos antes de usar la API.
+El entrenamiento se centraliza en la clase `ModelTrainer` (`jupyter/notebooks/utils/model_trainer.py`), que encapsula todo el ciclo de vida de un modelo: construcción del pipeline, entrenamiento, evaluación, visualización, persistencia y actualización del reporte de métricas.
 
-### Paso a paso
+### Inicialización
 
-1. Acceder a Jupyter Lab en `http://localhost:8888` con el token `mlops2024`.
+```python
+from utils.model_trainer import ModelTrainer
 
-2. Abrir el notebook `notebooks/train.ipynb`.
+trainer = ModelTrainer(
+    models_dir="/app/models",              # directorio donde se guardan los .pkl
+    report_path="/app/report/model_metrics.pkl"  # archivo de métricas acumuladas
+)
+```
 
-3. Ejecutar todas las celdas en orden. El notebook realiza:
+Al instanciarse, crea automáticamente los directorios si no existen (`os.makedirs`).
 
-   - **Carga de datos**: Lee `penguins_v1.csv` con 7 features originales (island, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, sex, year).
-   - **Limpieza**: Verifica nulos y duplicados, elimina la columna `id`.
-   - **Feature engineering**: Crea `bill_ratio` (bill_length / bill_depth) y `body_mass_kg` (body_mass_g / 1000), resultando en 9 features totales.
-   - **Split**: 80% train / 20% test con estratificación (`random_state=42`).
-   - **Entrenamiento**: Tres modelos como Pipelines (StandardScaler + Estimador):
-     - Random Forest (`n_estimators=100, max_depth=10`)
-     - SVM (`kernel=rbf, C=1.0`)
-     - Gradient Boosting (`n_estimators=100, max_depth=5, lr=0.1`)
-   - **Evaluación**: Accuracy, precision, recall, F1 (weighted) + matriz de confusión.
-   - **Persistencia**: Cada pipeline se guarda como `{nombre}_model.pkl` en el volumen compartido `/app/models/`. Las métricas se guardan en `/app/report/model_metrics.pkl`.
+### Método principal: `train_and_save()`
 
-4. Una vez completado, la API detecta automáticamente los modelos disponibles.
+```python
+rf_metrics = trainer.train_and_save(
+    name='randomforest',
+    estimator=RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42),
+    X_train=X_train, X_test=X_test,
+    y_train=y_train, y_test=y_test,
+    scaler=StandardScaler(),
+)
+```
+
+Este método ejecuta internamente los siguientes pasos:
+
+1. `_build_pipeline(estimator, scaler)` — Construye un `sklearn.pipeline.Pipeline`. Si se pasa un `scaler`, lo agrega como primer paso del pipeline; luego agrega el estimador. Esto garantiza que el escalado quede integrado en el modelo serializado.
+
+2. `pipeline.fit(X_train, y_train)` — Entrena el pipeline completo.
+
+3. `_evaluate(pipeline, name, X_train, X_test, y_train, y_test)` — Calcula métricas sobre train y test:
+   - `train_accuracy`
+   - `test_accuracy`, `test_precision`, `test_recall`, `test_f1` (todas con `average="weighted"`)
+
+4. `_show_report(pipeline, name, X_test, y_test)` — Imprime el `classification_report` de sklearn y muestra la matriz de confusión como heatmap con seaborn.
+
+5. `joblib.dump(pipeline, "{name}_model.pkl")` — Serializa el pipeline completo (scaler + modelo) en el volumen compartido `/app/models/`.
+
+6. `_update_report(metrics)` — Actualiza el archivo `model_metrics.pkl`:
+   - Si ya existe un registro para ese modelo, lo reemplaza (permite re-entrenar sin duplicar filas).
+   - Si no existe, lo agrega al DataFrame.
+   - Guarda el DataFrame actualizado con `pd.to_pickle()`.
 
 ### Agregar un nuevo modelo
 
-Para entrenar un modelo adicional, agregar una celda en el notebook:
+Solo se necesita una celda adicional en el notebook:
 
 ```python
 from sklearn.neighbors import KNeighborsClassifier
@@ -240,7 +267,66 @@ knn_metrics = trainer.train_and_save(
 )
 ```
 
-La API lo detectará automáticamente en el endpoint `GET /models`.
+El modelo queda disponible automáticamente en la API sin reiniciar el servicio.
+
+## Descubrimiento de Modelos y Métricas en la API
+
+La API no tiene una lista hardcodeada de modelos. En su lugar, descubre dinámicamente qué modelos están disponibles y sus métricas cada vez que se hace una petición.
+
+### Descubrimiento de modelos (`discover_models`)
+
+La función `discover_models()` en `API/utils/model_utils.py` escanea el directorio `models/` buscando archivos que coincidan con el patrón `*_model.pkl`:
+
+```python
+def discover_models():
+    pattern = os.path.join(MODELS_DIR, "*_model.pkl")
+    for path in glob.glob(pattern):
+        filename = os.path.basename(path)
+        name = filename.replace("_model.pkl", "").lower()
+        models[name] = path
+    return models
+```
+
+Esto significa que:
+- Cualquier archivo `{nombre}_model.pkl` que `ModelTrainer` guarde en el volumen compartido es detectado automáticamente.
+- No se necesita reiniciar la API ni modificar configuración alguna.
+- Si se elimina un `.pkl`, el modelo deja de aparecer en la siguiente petición.
+
+### Carga de métricas (`load_metrics`)
+
+La función `load_metrics()` lee el archivo `report/model_metrics.pkl` que `ModelTrainer._update_report()` mantiene actualizado:
+
+```python
+def load_metrics():
+    if os.path.exists(REPORT_PATH):
+        df = pd.read_pickle(REPORT_PATH)
+        return {
+            row["model"].lower(): {
+                "train_accuracy": ...,
+                "test_accuracy": ...,
+                "test_precision": ...,
+                "test_recall": ...,
+                "test_f1": ...,
+            }
+            for _, row in df.iterrows()
+        }
+    return {}
+```
+
+Las métricas se actualizan automáticamente porque:
+1. `ModelTrainer._update_report()` escribe/actualiza `model_metrics.pkl` en el volumen compartido cada vez que se entrena un modelo.
+2. La API lee ese mismo archivo (a través del volumen Docker `shared_report`) en cada petición a `GET /models`.
+3. Si se re-entrena un modelo, `_update_report()` reemplaza la fila anterior, así que las métricas siempre reflejan el último entrenamiento.
+
+### Flujo completo
+
+```
+Jupyter (ModelTrainer)                    API (FastAPI)
+─────────────────────                     ─────────────
+train_and_save()                          
+  ├─ joblib.dump → /app/models/*.pkl  ──▶  discover_models() → glob("*_model.pkl")
+  └─ _update_report → model_metrics.pkl ─▶  load_metrics() → pd.read_pickle()
+```
 
 ## Pruebas de la API
 
@@ -306,42 +392,29 @@ FastAPI genera documentación Swagger automáticamente en `http://localhost:8000
 
 ## Registro de Resultados (Logging de Predicciones)
 
-La API registra automáticamente cada predicción en un archivo de log persistente. Este mecanismo permite auditar las predicciones realizadas y analizar el uso de los modelos.
+La API registra automáticamente cada predicción usando la clase `PredictionLogger` (`API/utils/logger.py`).
 
 ### Cómo funciona
 
-Al iniciar la API, se configura un logger dedicado usando el módulo `logging` de Python:
-
 ```python
-RESULTS_DIR = "results"
-os.makedirs(RESULTS_DIR, exist_ok=True)
+class PredictionLogger:
+    def __init__(self, results_dir="results", filename="predictions.log"):
+        # Crea el directorio y configura un FileHandler dedicado
 
-_pred_logger = logging.getLogger("predictions")
-_pred_logger.setLevel(logging.INFO)
-_handler = logging.FileHandler(os.path.join(RESULTS_DIR, "predictions.log"))
-_handler.setFormatter(logging.Formatter("%(message)s"))
-_pred_logger.addHandler(_handler)
+    def log(self, input_data: dict, result: dict):
+        # Escribe una línea JSON con timestamp, input y resultado
 ```
 
-- Se crea el directorio `results/` si no existe.
-- Se configura un logger llamado `"predictions"` con un `FileHandler` que escribe en `results/predictions.log`.
-- El formato es solo `%(message)s` (sin prefijos de nivel o timestamp del logger, porque el timestamp se incluye manualmente en el JSON).
-
-### Qué se registra
-
-Cada vez que el endpoint `POST /classify/{model_name}` responde exitosamente, se escribe una línea JSON en el log con tres campos:
+Se instancia una vez al iniciar la API:
 
 ```python
-log_entry = {
-    "timestamp": datetime.utcnow().isoformat(),   # cuándo se hizo la predicción
-    "input": data.model_dump(),                     # los 7 campos de entrada del pingüino
-    "result": {
-        "model": model_name,                        # qué modelo se usó
-        "species_id": prediction,                   # predicción numérica (1, 2 o 3)
-        "species_name": species_name,               # nombre de la especie
-    },
-}
-_pred_logger.info(json.dumps(log_entry))
+pred_logger = PredictionLogger()
+```
+
+Y se invoca en cada predicción exitosa:
+
+```python
+pred_logger.log(data.model_dump(), result)
 ```
 
 ### Ejemplo de una línea en predictions.log
