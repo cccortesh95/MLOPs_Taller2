@@ -14,7 +14,7 @@ COPY API/app.py /app/app.py
 COPY API/utils/ /app/utils/
 
 # Crear directorios que se montarán como volúmenes
-RUN mkdir -p /app/modelos /app/report /app/results
+RUN mkdir -p /app/models /app/report /app/results
 
 EXPOSE 8000
 

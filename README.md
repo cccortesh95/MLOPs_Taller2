@@ -1,4 +1,4 @@
-# Penguin Classifier — MLOps Taller 1
+# Penguin Classifier — MLOps Taller 2
 
 Proyecto de clasificación de especies de pingüinos usando modelos de Machine Learning, desplegado con Docker Compose. Incluye un entorno Jupyter para entrenamiento y una API FastAPI para inferencia en tiempo real.
 
@@ -16,7 +16,7 @@ Ambos servicios comparten volúmenes Docker para modelos, reportes, datos y resu
 ## Estructura del Proyecto
 
 ```
-MLOps_Taller1/
+MLOps_Taller2/
 ├── API/
 │   ├── app.py                          # Endpoints FastAPI
 │   └── utils/
@@ -27,13 +27,15 @@ MLOps_Taller1/
 │   └── penguins_v1.csv                 # Dataset de pingüinos
 ├── Docker/
 │   ├── docker-compose.yml              # Orquestación de servicios
-│   ├── Dockerfile.api                  # Imagen de la API
-│   └── Dockerfile.jupyter              # Imagen de Jupyter
-└── jupyter/
-    └── notebooks/
-        ├── train.ipynb                 # Notebook de entrenamiento
-        └── utils/
-            └── model_trainer.py        # Clase ModelTrainer
+│   ├── Dockerfile.api                  # Imagen de la API (python:3.13-slim)
+│   └── Dockerfile.jupyter              # Imagen de Jupyter (python:3.13-slim)
+├── jupyter/
+│   └── notebooks/
+│       ├── train.ipynb                 # Notebook de entrenamiento
+│       └── utils/
+│           ├── __init__.py
+│           └── model_trainer.py        # Clase ModelTrainer
+└── README.md
 ```
 
 ## Requisitos Previos
@@ -74,7 +76,7 @@ jupyter:
     - shared_data:/app/data
     - shared_results:/app/results
   environment:
-    - JUPYTER_TOKEN=mlops2024
+    - JUPYTER_TOKEN=mlops12345
 ```
 
 - Expone el puerto `8888` para acceder a Jupyter Lab desde el navegador.
@@ -88,7 +90,7 @@ api:
   ports:
     - "8000:8000"
   volumes:
-    - shared_models:/app/modelos
+    - shared_models:/app/models
     - shared_report:/app/report
     - shared_results:/app/results
   depends_on:
@@ -96,7 +98,7 @@ api:
 ```
 
 - Expone el puerto `8000` para recibir peticiones HTTP.
-- Monta los mismos volúmenes de modelos y reportes (nota: el punto de montaje es `/app/modelos` porque así lo espera `app.py`).
+- Monta los mismos volúmenes de modelos y reportes.
 - `depends_on: jupyter` asegura que el contenedor de Jupyter se inicie primero, aunque no garantiza que los modelos estén entrenados — eso requiere ejecución manual del notebook.
 
 ### Volúmenes nombrados
@@ -117,7 +119,7 @@ Se usan volúmenes nombrados para:
 ### Dockerfile.jupyter
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /app
 RUN uv init --no-readme && \
@@ -127,7 +129,7 @@ COPY jupyter/notebooks/ /app/notebooks/
 RUN mkdir -p /app/models
 EXPOSE 8888
 CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", \
-     "--no-browser", "--allow-root", "--NotebookApp.token=mlops2024"]
+     "--no-browser", "--allow-root", "--NotebookApp.token=mlops12345"]
 ```
 
 - Usa `uv` como gestor de paquetes (más rápido que pip).
@@ -137,13 +139,14 @@ CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", \
 ### Dockerfile.api
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /app
 RUN uv init --no-readme && \
     uv add fastapi uvicorn scikit-learn joblib numpy pydantic pandas
 COPY API/app.py /app/app.py
-RUN mkdir -p /app/modelos /app/report /app/results
+COPY API/utils/ /app/utils/
+RUN mkdir -p /app/models /app/report /app/results
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", \
      "--port", "8000", "--reload"]
@@ -167,7 +170,7 @@ CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", \
    └── ModelTrainer guarda métricas en /app/report/ (volumen shared_report)
 
 4. API en http://localhost:8000 lee los mismos volúmenes
-   └── GET /models → descubre *_model.pkl en /app/modelos/
+   └── GET /models → descubre *_model.pkl en /app/models/
    └── POST /classify/{model} → carga pipeline, predice, loguea en /app/results/
 ```
 
@@ -176,12 +179,12 @@ CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", \
 ### 1. Construir y levantar los servicios
 
 ```bash
-cd MLOps_Taller1/Docker
+cd MLOps_Taller2/Docker
 docker-compose up --build
 ```
 
-Esto construye ambas imágenes y levanta:
-- Jupyter Lab en `http://localhost:8888` (token: `mlops2024`)
+Esto construye ambas imágenes (basadas en `python:3.13-slim` con `uv` como gestor de paquetes) y levanta:
+- Jupyter Lab en `http://localhost:8888` (token: `mlops12345`)
 - API en `http://localhost:8000`
 
 ### 2. Reconstruir solo un servicio
@@ -202,6 +205,15 @@ Para eliminar también los volúmenes (modelos, reportes, etc.) y empezar desde 
 ```bash
 docker-compose down -v
 ```
+
+### 4. Entrenar los modelos
+
+Una vez levantados los servicios:
+
+1. Abrir Jupyter Lab en `http://localhost:8888` con el token `mlops12345`.
+2. Abrir `notebooks/train.ipynb` y ejecutar todas las celdas.
+3. `ModelTrainer` guarda los pipelines en `/app/models/` y las métricas en `/app/report/model_metrics.pkl` (volúmenes compartidos).
+4. La API detecta los modelos automáticamente sin necesidad de reiniciar.
 
 ## Entrenamiento de Modelos — Clase `ModelTrainer`
 
@@ -465,7 +477,7 @@ Especies: `1` = Adelie, `2` = Chinstrap, `3` = Gentoo
 
 | Volumen | Jupyter | API | Contenido |
 |---|---|---|---|
-| shared_models | /app/models | /app/modelos | Archivos .pkl de modelos |
+| shared_models | /app/models | /app/models | Archivos .pkl de modelos |
 | shared_report | /app/report | /app/report | model_metrics.pkl |
 | shared_data | /app/data | — | penguins_v1.csv |
 | shared_results | /app/results | /app/results | predictions.log |
