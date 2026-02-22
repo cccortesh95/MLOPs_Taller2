@@ -64,14 +64,14 @@ class ModelTrainer:
         print(f"\nPipeline '{name}' guardado en {model_path}")
         return metrics
 
-    def _build_pipeline(estimator, scaler=None) -> Pipeline:
+    def _build_pipeline(self, estimator, scaler=None) -> Pipeline:
         steps = []
         if scaler is not None:
             steps.append(("scaler", scaler))
         steps.append(("model", estimator))
         return Pipeline(steps)
 
-    def _evaluate(pipeline, name, X_train, X_test, y_train, y_test) -> dict:
+    def _evaluate(self, pipeline, name, X_train, X_test, y_train, y_test) -> dict:
         y_train_pred = pipeline.predict(X_train)
         y_test_pred = pipeline.predict(X_test)
         return {
@@ -83,7 +83,7 @@ class ModelTrainer:
             "test_f1": f1_score(y_test, y_test_pred, average="weighted"),
         }
 
-    def _show_report(pipeline, name, X_test, y_test):
+    def _show_report(self, pipeline, name, X_test, y_test):
         y_pred = pipeline.predict(X_test)
 
         # Classification report
