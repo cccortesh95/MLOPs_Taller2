@@ -1,76 +1,19 @@
-import os
-import glob
-import json
-import logging
-from datetime import datetime
-
-import joblib
-import pandas as pd
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+from utils.model_utils import (
+    SPECIES_MAP,
+    discover_models,
+    is_pipeline,
+    load_metrics,
+    load_model,
+    load_scaler,
+)
+from utils.logger import PredictionLogger
+
 app = FastAPI(title="Penguin Classifier API")
-
-MODELS_DIR = "models"
-REPORT_PATH = "report/model_metrics.pkl"
-RESULTS_DIR = "results"
-
-# Configurar logger de predicciones
-os.makedirs(RESULTS_DIR, exist_ok=True)
-_pred_logger = logging.getLogger("predictions")
-_pred_logger.setLevel(logging.INFO)
-_handler = logging.FileHandler(os.path.join(RESULTS_DIR, "predictions.log"))
-_handler.setFormatter(logging.Formatter("%(message)s"))
-_pred_logger.addHandler(_handler)
-
-SPECIES_MAP = {1: "Adelie", 2: "Chinstrap", 3: "Gentoo"}
-
-
-def load_metrics():
-    """Carga métricas si el archivo existe."""
-    if os.path.exists(REPORT_PATH):
-        df = pd.read_pickle(REPORT_PATH)
-        return {
-            row["model"].lower(): {
-                "train_accuracy": row["train_accuracy"],
-                "test_accuracy": row["test_accuracy"],
-                "test_precision": row["test_precision"],
-                "test_recall": row["test_recall"],
-                "test_f1": row["test_f1"],
-            }
-            for _, row in df.iterrows()
-        }
-    return {}
-
-
-def discover_models():
-    """Descubre dinámicamente los modelos .pkl disponibles en el directorio."""
-    models = {}
-    pattern = os.path.join(MODELS_DIR, "*_model.pkl")
-    for path in glob.glob(pattern):
-        filename = os.path.basename(path)
-        name = filename.replace("_model.pkl", "").lower()
-        models[name] = path
-    return models
-
-
-def load_model(path):
-    """Carga un modelo desde disco"""
-    return joblib.load(path)
-
-
-def load_scaler():
-    """Carga el scaler si existe"""
-    scaler_path = os.path.join(MODELS_DIR, "scaler.pkl")
-    if os.path.exists(scaler_path):
-        return joblib.load(scaler_path)
-    return None
-
-
-def _is_pipeline(model):
-    """Detecta si el modelo cargado es un Pipeline de sklearn."""
-    return hasattr(model, "steps")
+pred_logger = PredictionLogger()
 
 
 class PenguinInput(BaseModel):
@@ -154,7 +97,7 @@ async def list_models():
 
 @app.post("/classify/{model_name}")
 async def classify(model_name: str, data: PenguinInput):
-    """Clasifica un pingüino usando el modelo especificado (carga dinámica)."""
+    """Clasifica un pingüino usando el modelo especificado"""
     available = discover_models()
     if model_name not in available:
         raise HTTPException(
@@ -164,11 +107,9 @@ async def classify(model_name: str, data: PenguinInput):
     try:
         model = load_model(available[model_name])
         features = _build_features(data)
-        if _is_pipeline(model):
-            # Pipeline ya incluye scaler + modelo
+        if is_pipeline(model):
             prediction = int(model.predict(features)[0])
         else:
-            # Modelo suelto: aplicar scaler externo si existe
             scaler = load_scaler()
             if scaler is not None:
                 features = scaler.transform(features)
@@ -186,12 +127,6 @@ async def classify(model_name: str, data: PenguinInput):
         "species_name": species_name,
     }
 
-    # Registrar entrada, modelo y resultado en el log
-    log_entry = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "input": data.model_dump(),
-        "result": result,
-    }
-    _pred_logger.info(json.dumps(log_entry))
+    pred_logger.log(data.model_dump(), result)
 
     return result
