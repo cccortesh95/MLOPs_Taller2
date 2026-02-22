@@ -1,3 +1,43 @@
+## 📚 Tabla de Contenido
+
+- [Arquitectura](#arquitectura)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Requisitos Previos](#requisitos-previos)
+- [Diseño del Docker Compose](#diseño-del-docker-compose)
+  - [Contexto de build](#contexto-de-build)
+  - [Servicio Jupyter](#servicio-jupyter)
+  - [Servicio API](#servicio-api)
+  - [Volúmenes nombrados](#volúmenes-nombrados)
+  - [Dockerfile.jupyter](#dockerfilejupyter)
+  - [Dockerfile.api](#dockerfileapi)
+  - [Flujo de comunicación entre servicios](#flujo-de-comunicación-entre-servicios)
+- [Construcción y Despliegue](#construcción-y-despliegue)
+  - [1. Construir y levantar los servicios](#1-construir-y-levantar-los-servicios)
+  - [2. Reconstruir solo un servicio](#2-reconstruir-solo-un-servicio)
+  - [3. Detener los servicios](#3-detener-los-servicios)
+  - [4. Entrenar los modelos](#4-entrenar-los-modelos)
+- [Entrenamiento de Modelos — Clase `ModelTrainer`](#entrenamiento-de-modelos--clase-modeltrainer)
+  - [Inicialización](#inicialización)
+  - [Método principal: `train_and_save()`](#método-principal-train_and_save)
+  - [Agregar un nuevo modelo](#agregar-un-nuevo-modelo)
+- [Descubrimiento de Modelos y Métricas en la API](#descubrimiento-de-modelos-y-métricas-en-la-api)
+  - [Descubrimiento de modelos (`discover_models`)](#descubrimiento-de-modelos-discover_models)
+  - [Carga de métricas (`load_metrics`)](#carga-de-métricas-load_metrics)
+  - [Flujo completo](#flujo-completo)
+- [Pruebas de la API](#pruebas-de-la-api)
+  - [Listar modelos disponibles](#listar-modelos-disponibles)
+  - [Clasificar un pingüino](#clasificar-un-pingüino)
+  - [Documentación interactiva](#documentación-interactiva)
+- [Registro de Resultados (Logging de Predicciones)](#registro-de-resultados-logging-de-predicciones)
+  - [Cómo funciona](#cómo-funciona)
+  - [Ejemplo de una línea en predictionslog](#ejemplo-de-una-línea-en-predictionslog)
+  - [Persistencia del log](#persistencia-del-log)
+- [Mapeo de Variables](#mapeo-de-variables)
+- [Volúmenes Compartidos](#volúmenes-compartidos)
+- [Notas](#notas)
+
+
+
 # Penguin Classifier — MLOps Taller 2
 
 Proyecto de clasificación de especies de pingüinos usando modelos de Machine Learning, desplegado con Docker Compose. Incluye un entorno Jupyter para entrenamiento y una API FastAPI para inferencia en tiempo real.
