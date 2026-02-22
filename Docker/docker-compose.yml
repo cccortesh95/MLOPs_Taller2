@@ -1,0 +1,33 @@
+services:
+  jupyter:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile.jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - shared_models:/app/models
+      - shared_report:/app/report
+      - shared_data:/app/data
+      - shared_results:/app/results
+    environment:
+      - JUPYTER_TOKEN=mlops2024
+
+  api:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - shared_models:/app/modelos
+      - shared_report:/app/report
+      - shared_results:/app/results
+    depends_on:
+      - jupyter
+
+volumes:
+  shared_models:
+  shared_report:
+  shared_data:
+  shared_results:

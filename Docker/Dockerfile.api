@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+# Instalar uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Crear proyecto uv e instalar dependencias
+RUN uv init --no-readme && \
+    uv add fastapi uvicorn scikit-learn joblib numpy pydantic pandas
+
+# Copiar código de la API
+COPY API/app.py /app/app.py
+
+# Crear directorios que se montarán como volúmenes
+RUN mkdir -p /app/modelos /app/report /app/results
+
+EXPOSE 8000
+
+CMD ["uv", "run", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

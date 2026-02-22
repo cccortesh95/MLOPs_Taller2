@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+# Instalar uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Crear proyecto e instalar dependencias
+RUN uv init --no-readme && \
+    uv add jupyterlab pandas numpy scikit-learn matplotlib seaborn joblib
+
+# Copiar dataset, notebook y módulo de entrenamiento
+COPY data/penguins_v1.csv /app/data/penguins_v1.csv
+COPY jupyter/notebooks/ /app/notebooks/
+
+# Crear directorio de modelos compartido
+RUN mkdir -p /app/models
+
+EXPOSE 8888
+
+CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=mlops2024"]
