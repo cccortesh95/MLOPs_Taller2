@@ -384,7 +384,9 @@ train_and_save()
 ```bash
 curl http://localhost:8000/models
 ```
-
+<p align="center">
+  <img src="Imagenes/API_penguin_classifier.png" alt="Pruebas de la API" width="800">
+</p>
 Respuesta esperada (después de entrenar):
 
 ```json
@@ -408,7 +410,10 @@ Respuesta esperada (después de entrenar):
   ]
 }
 ```
-![Pruebas de la API](Imagenes/Arquitectura.png)
+<p align="center">
+  <img src="Imagenes/get_modelos.png" alt="Pruebas de la API" width="800">
+</p>
+
 
 ### Clasificar un pingüino
 
@@ -435,6 +440,9 @@ Respuesta:
   "species_name": "Adelie"
 }
 ```
+<p align="center">
+  <img src="Imagenes/post_modelo.png" alt="Pruebas de la API" width="800">
+</p>
 
 ### Documentación interactiva
 
