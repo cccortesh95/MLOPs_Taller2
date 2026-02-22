@@ -11,7 +11,7 @@ services:
       - shared_data:/app/data
       - shared_results:/app/results
     environment:
-      - JUPYTER_TOKEN=mlops2024
+      - JUPYTER_TOKEN=mlops12345
 
   api:
     build:
