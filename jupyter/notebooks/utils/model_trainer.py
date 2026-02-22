@@ -1,22 +1,5 @@
 """
-Clase encargada de entrenar modelos (con Pipeline + Scaler),
-guardarlos, mostrar métricas visuales y actualizar el reporte.
-
-Uso en el notebook:
-    from utils.model_trainer import ModelTrainer
-
-    trainer = ModelTrainer(
-        models_dir='/app/models',
-        report_path='/app/report/model_metrics.pkl',
-    )
-
-    metrics = trainer.train_and_save(
-        name='randomforest',
-        estimator=RandomForestClassifier(n_estimators=100, random_state=42),
-        X_train=X_train, X_test=X_test,
-        y_train=y_train, y_test=y_test,
-        scaler=StandardScaler(),   # se integra en un Pipeline
-    )
+Clase encargada de entrenar modelos, guardarlos, mostrar métricas visuales y actualizar el reporte
 """
 
 import os
@@ -36,7 +19,7 @@ from sklearn.pipeline import Pipeline
 
 
 class ModelTrainer:
-    """Entrena pipelines de sklearn, los persiste y mantiene el reporte de métricas."""
+    """Entrena pipelines de sklearn, los persiste y mantiene el reporte de métricas"""
 
     def __init__(
         self,
@@ -48,15 +31,9 @@ class ModelTrainer:
         os.makedirs(models_dir, exist_ok=True)
         os.makedirs(os.path.dirname(report_path), exist_ok=True)
 
-    # ------------------------------------------------------------------
-    # Público
-    # ------------------------------------------------------------------
-
     def train_and_save(self, name: str, estimator, X_train, X_test, y_train, y_test, scaler=None):
         """
-        Construye un Pipeline (scaler + estimator), entrena, evalúa,
-        muestra classification_report y matriz de confusión,
-        guarda el pipeline como {name}_model.pkl y actualiza el reporte.
+        Construye un Pipeline, entrena, evalúa, muestra classification_report y matriz de confusión, guarda el pipeline como {name}_model.pkl y actualiza el reporte.
 
         Parámetros
         ----------
@@ -77,21 +54,16 @@ class ModelTrainer:
         metrics = self._evaluate(pipeline, name, X_train, X_test, y_train, y_test)
         self._show_report(pipeline, name, X_test, y_test)
 
-        # Guardar pipeline completo (scaler + modelo)
+        # Guardar pipeline completo
         model_path = os.path.join(self.models_dir, f"{name.lower()}_model.pkl")
         joblib.dump(pipeline, model_path)
 
         # Actualizar reporte
         self._update_report(metrics)
 
-        print(f"\n[ModelTrainer] Pipeline '{name}' guardado en {model_path}")
+        print(f"\nPipeline '{name}' guardado en {model_path}")
         return metrics
 
-    # ------------------------------------------------------------------
-    # Privado
-    # ------------------------------------------------------------------
-
-    @staticmethod
     def _build_pipeline(estimator, scaler=None) -> Pipeline:
         steps = []
         if scaler is not None:
@@ -99,7 +71,6 @@ class ModelTrainer:
         steps.append(("model", estimator))
         return Pipeline(steps)
 
-    @staticmethod
     def _evaluate(pipeline, name, X_train, X_test, y_train, y_test) -> dict:
         y_train_pred = pipeline.predict(X_train)
         y_test_pred = pipeline.predict(X_test)
@@ -112,7 +83,6 @@ class ModelTrainer:
             "test_f1": f1_score(y_test, y_test_pred, average="weighted"),
         }
 
-    @staticmethod
     def _show_report(pipeline, name, X_test, y_test):
         y_pred = pipeline.predict(X_test)
 
