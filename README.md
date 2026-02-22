@@ -222,7 +222,17 @@ docker-compose up --build
 
 Esto construye ambas imágenes (basadas en `python:3.13-slim` con `uv` como gestor de paquetes) y levanta:
 - Jupyter Lab en `http://localhost:8888` (token: `mlops12345`)
+
+<p align="center">
+  <img src="Imagenes/JupyterLab.png" alt="JupyterLab" width="800">
+</p>
+
 - API en `http://localhost:8000`
+
+<p align="center">
+  <img src="Imagenes/API_penguin_classifier.png" alt="API" width="800">
+</p>
+
 
 ### 2. Reconstruir solo un servicio
 
@@ -533,3 +543,11 @@ Especies: `1` = Adelie, `2` = Chinstrap, `3` = Gentoo
 - La API carga modelos dinámicamente: cualquier archivo `*_model.pkl` en el volumen de modelos es detectado sin reiniciar el servicio.
 - Las predicciones se registran en `results/predictions.log` con timestamp, input y resultado.
 - Si la API se levanta sin modelos entrenados, `GET /models` retorna una lista vacía y `POST /classify/{model}` retorna 404.
+
+
+
+## 👥 Colaboradores
+
+- 🧑‍💻 **Camilo Cortés** — [![GitHub](https://img.shields.io/badge/GitHub-@cccortesh95-181717?logo=github)](https://github.com/cccortesh95)
+- 🧑‍💻 **Johnny Castañeda** — [![GitHub](https://img.shields.io/badge/GitHub-@Johnny--Castaneda--Marin-181717?logo=github)](https://github.com/Johnny-Castaneda-Marin)
+- 🧑‍💻 **Benkos Triana** — [![GitHub](https://img.shields.io/badge/GitHub-@BenkosT-181717?logo=github)](https://github.com/BenkosT)
