@@ -4,12 +4,9 @@ Proyecto de clasificación de especies de pingüinos usando modelos de Machine L
 
 ## Arquitectura
 
-```
-┌─────────────────┐       volúmenes compartidos       ┌─────────────────┐
-│    Jupyter Lab   │ ──── models / report / data ────▶ │   FastAPI (API)  │
-│   (puerto 8888)  │                                   │   (puerto 8000)  │
-└─────────────────┘                                    └─────────────────┘
-```
+
+![Arquitectura del Proyecto](Imagenes/Arquitectura.png)
+
 
 Ambos servicios comparten volúmenes Docker para modelos, reportes, datos y resultados.
 
