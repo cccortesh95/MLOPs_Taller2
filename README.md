@@ -81,7 +81,7 @@ MLOps_Taller2/
 
 ## Diseño del Docker Compose
 
-El archivo `Docker/docker-compose.yml` orquesta dos servicios que se comunican a través de volúmenes compartidos. A continuación se explica cada decisión de diseño.
+El archivo `Docker/docker-compose.yml` contiene dos servicios que se comunican a través de volúmenes compartidos.
 
 ### Contexto de build
 
@@ -169,7 +169,7 @@ CMD ["uv", "run", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", \
      "--no-browser", "--allow-root", "--NotebookApp.token=mlops12345"]
 ```
 
-- Usa `uv` como gestor de paquetes (más rápido que pip).
+- Usa `uv` como gestor de paquetes.
 - Copia el dataset y los notebooks dentro de la imagen para que estén disponibles sin volúmenes adicionales.
 - El dataset también se monta como volumen, pero la copia en la imagen sirve como fallback.
 
