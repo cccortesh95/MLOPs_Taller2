@@ -343,7 +343,7 @@ El modelo queda disponible automáticamente en la API sin reiniciar el servicio.
 
 ## Descubrimiento de Modelos y Métricas en la API
 
-La API no tiene una lista hardcodeada de modelos. En su lugar, descubre dinámicamente qué modelos están disponibles y sus métricas cada vez que se hace una petición.
+La API no tiene una lista de modelos. En su lugar, descubre dinámicamente qué modelos están disponibles y sus métricas cada vez que se hace una petición.
 
 ### Descubrimiento de modelos (`discover_models`)
 
@@ -363,6 +363,11 @@ Esto significa que:
 - Cualquier archivo `{nombre}_model.pkl` que `ModelTrainer` guarde en el volumen compartido es detectado automáticamente.
 - No se necesita reiniciar la API ni modificar configuración alguna.
 - Si se elimina un `.pkl`, el modelo deja de aparecer en la siguiente petición.
+
+<p align="center">
+  <img src="Imagenes/Metridas_d.png" alt="API" width="800">
+</p>
+
 
 ### Carga de métricas (`load_metrics`)
 
