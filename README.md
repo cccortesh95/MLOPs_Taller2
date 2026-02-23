@@ -325,8 +325,21 @@ knn_metrics = trainer.train_and_save(
     scaler=StandardScaler(),
 )
 ```
+<p align="center">
+  <img src="Imagenes/Nuevo_modelo.png" alt="API" width="800">
+</p>
+
+Luego se inserta automaticamente en la carpeta de los modelos disponibles para la API
+
+<p align="center">
+  <img src="Imagenes/modelos_d.png" alt="API" width="800">
+</p>
 
 El modelo queda disponible automáticamente en la API sin reiniciar el servicio.
+
+<p align="center">
+  <img src="Imagenes/modelo_api_d.png" alt="API" width="800">
+</p>
 
 ## Descubrimiento de Modelos y Métricas en la API
 
